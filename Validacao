@@ -1,0 +1,247 @@
+package br.com.mapeamento.controle;
+
+
+import java.io.IOException;
+import java.sql.Date;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import br.com.mapeamento.modelo.beans.Logger;
+import br.com.mapeamento.modelo.beans.Ocorrencia;
+import br.com.mapeamento.modelo.beans.UF;
+
+	public class Validacao {
+
+	private final String path = "c:\\logValidacao";
+	private final Date dataMinima = new Date(0); // equivalente á 01/01/1970.	
+	private final ReentrantLock arquivoLock = new ReentrantLock();
+	private final Condition liberarArquivo = arquivoLock.newCondition();
+	private static boolean bloqueado = false;
+	private static Logger logger = Logger.INSTANCE;
+	
+	private Ocorrencia ocorreciaParavalidar;
+	
+	
+	/*
+	 * TEM QUE TER CINCO VALIDAÇOES ( DATA, HORA, TIPO LOGRADOURO, LOGRADOURO e TIPO OCORRENCIA)
+	 * 
+	 * 
+	 * FALTA CRIAR AS VALIDAÇÃO PARA TIPO DE OCORRENCIA *************************
+	 * 
+	 * FALTA CRIAR AS VALIDAÇÃO PARA HORA DA OCORRENCIA *************************
+	 * 
+	 * 
+	 * 
+	 * */
+		
+	
+	
+	
+	public Validacao() {
+		super();
+	}
+
+	
+	/**
+	 * @param ocorreciaParavalidar recebe uma instancia de ocorencia que precisa ser validada
+	 * @return retorna true se validou todos os campos e false se teve algum erro na validacao
+	 * @throws InterruptedException
+	 */
+	public boolean valida(Ocorrencia ocorreciaParavalidar) throws InterruptedException {
+		
+		this.ocorreciaParavalidar = ocorreciaParavalidar;
+		
+		String menssagem = "ID : "+this.ocorreciaParavalidar.getiDOcorrencia() +
+						" - Data: " + this.ocorreciaParavalidar.getDataOcorrencia() +
+						" - Time: " + this.ocorreciaParavalidar.getHoraOcorrencia() +
+						" - TipoLogradouro:" + this.ocorreciaParavalidar.getTipoLogradouro() +
+						" - Loradouro:" + this.ocorreciaParavalidar.getLogradouro() +
+						" - Bairro: " + this.ocorreciaParavalidar.getBairro();
+		
+
+		//VALIDA DATA OCORRENCIA
+		if (this.ocorreciaParavalidar.getDataOcorrencia().before(dataMinima)) { 
+			arquivoLock.lock();
+			System.out.println("Acesso garantido para validar data Ocorrencia... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+			while (bloqueado)
+				System.out.println("Logger bloqueado para validar data Ocorrencia... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+				liberarArquivo.await();
+
+			try {
+				bloqueado = true;
+				logger.printMessage(path, "DATAOCORRENCIA INVÁLIDA:" + menssagem);
+				System.err.println("Feito Logger em validar data Ocorrencia.... | "+this.ocorreciaParavalidar.getiDOcorrencia());
+				bloqueado = false;
+				liberarArquivo.signalAll();
+				
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				System.out.println("Acesso liberado, saiu de validar data Ocorrencia... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+				arquivoLock.unlock();
+			}
+
+		} else if (this.ocorreciaParavalidar.getTipoLogradouro().isEmpty() 
+				|| this.ocorreciaParavalidar.getTipoLogradouro().length() < 2) {	// VALIDA TIPO LOGRADOURO
+				
+			/* alterei o range da validação de TIPO LOGRADOURO para 2 por que pode ter tipo = AV (Avenida) */
+			
+			arquivoLock.lock();
+			System.out.println("Acesso garantido para validar tipo logradouro... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+			while (bloqueado)
+				System.out.println("Logger bloqueado para validar tipo logradouro ... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+				liberarArquivo.await();
+
+			try {
+				bloqueado = true;
+				logger.printMessage(path, "TIPOLOGRADOURO INVÁLIDO:" + menssagem);
+				System.err.println("Feito Logger em validar tipo logradouro.... | "+this.ocorreciaParavalidar.getiDOcorrencia());
+				bloqueado = false;
+				liberarArquivo.signalAll();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				System.out.println("Acesso liberado, saiu de validar tipo logradouro... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+				arquivoLock.unlock();
+			}
+			
+		} else if (this.ocorreciaParavalidar.getLogradouro().isEmpty() 
+				|| this.ocorreciaParavalidar.getLogradouro().length() < 3) { // VALIDA NOME LOGRADOURO
+			
+			arquivoLock.lock();
+			System.out.println("Acesso garantido para validar logradouro... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+			while (bloqueado)
+				System.err.println("Logger bloqueado para validar logradouro ... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+				liberarArquivo.await();
+
+			try {
+				bloqueado = true;
+				logger.printMessage(path, "LOGRADOURO INVÁLIDO:" + menssagem);
+				System.out.println("Feito Logger em validar logradouro.... | "+this.ocorreciaParavalidar.getiDOcorrencia());
+				bloqueado = false;
+				liberarArquivo.signalAll();
+				
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				System.out.println("Acesso liberado, saiu de validar logradouro... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+				arquivoLock.unlock();
+			}
+
+		} else if (!ValidaCep(this.ocorreciaParavalidar.getCep())) {	// VALIDA CEP
+			arquivoLock.lock();
+			System.out.println("Acesso garantido para validar CEP... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+			while (bloqueado)
+				System.out.println("Logger bloqueado para validar CEP ... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+				liberarArquivo.await();
+
+			try {
+				bloqueado = true;
+				logger.printMessage(path, "CEP INVÁLIDO:" + menssagem);
+				System.err.println("Feito Logger em validar CEP.... | "+this.ocorreciaParavalidar.getiDOcorrencia());
+				bloqueado = false;
+				liberarArquivo.signalAll();
+			} catch (IOException e) {
+				e.printStackTrace();
+			} finally {
+				System.out.println("Acesso liberado, saiu de validar CEP... | iDOcorrencia: "+this.ocorreciaParavalidar.getiDOcorrencia());
+				arquivoLock.unlock();
+			}
+
+		} else {			
+				
+			// SE PASSOU TODAS AS VALIDAÇOES RETORNA VDD PARA ADC NA LISTA COMPARTILHADA *****
+			return true;
+			
+		}
+		return false;
+
+	}
+
+	// Valida CEP
+	public static boolean ValidaCep(String cep) {
+		if (cep.length() == 9) {
+
+			Pattern pattern = Pattern.compile("d{5,5}-\\d{3,3}");
+			Matcher matcher = pattern.matcher(cep);
+
+			if (matcher.find()) {
+				return true;
+			} else {
+				return false;
+			}
+		} else {
+			return false;
+		}
+	}
+
+	// VALIDA UF
+	public static boolean ValidaUF(UF uf) {
+		if (uf.getUf().length() == 2) {
+
+			switch (uf.getUf().toUpperCase()) {
+			
+			case "AC":
+				return true;
+			case "Al":
+				return true;			
+			case "AM":
+				return true;
+			case "AP" :
+				return true;
+			case "BA":
+				return true;
+			case "CE":
+				return true;
+			case "DF":
+				return true;
+			case "ES":
+				return true;
+			case "GO":
+				return true;
+			case "MA":
+				return true;
+			case "MT":
+				return true;
+			case "MS":
+				return true;
+			case "MG":
+				return true;
+			case "PA":
+				return true;
+			case "PB":
+				return true;
+			case "PE":
+				return true;
+			case "PI":
+				return true;
+			case "RJ":
+				return true;	
+			case "RN":
+				return true;
+			case "RS":
+				return true;
+			case "RO":
+				return true;
+			case "RR":
+				return true;
+			case "SC":
+				return true;
+			case "SP":
+				return true;
+			case "SE":
+				return true;
+			case "TO":	
+				return true;
+			default:
+				return false;
+			}
+
+		} else {
+			return false;
+		}
+	}
+
+}
